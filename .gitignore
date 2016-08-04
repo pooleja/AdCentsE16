@@ -1,10 +1,8 @@
 __pycache__
 
-transcodeE16.pid
+elasticsearche16.pid
 
-server-data/*.mp4
-
-jobs.db
-jobs.db-journal
+indexes.db
+indexes.db-journal
 
 .DS_Store

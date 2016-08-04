@@ -1,13 +1,13 @@
 #!/bin/bash
 
-# sensor21 install script
+# ElasticsearchE16 install script
 #
 # This script will help install dependencies for sensor21. It also
 # sets up the SQLite database to abstract the low level hardware
 # communications from server requests to eliminate bus collisions.
 
 ### List of packages to install
-declare -a APT_PACKAGES=("python3-pip" "sqlite3" "avconv" "libav-tools")
+declare -a APT_PACKAGES=("python3-pip" "sqlite3")
 declare -a PIP3_PACKAGES=("flask" "click" "PyYAML" "requests" "psutil" "pexpect")
 
 # Helper functions: bash pretty printing, pip3 and apt-get package
@@ -81,16 +81,16 @@ pip3_installer() {
 }
 
 ### Main program execution
-print_good "Welcome to TrancodeE16 installer!"
+print_good "Welcome to the ElasticsearchE16 installer!"
 
 echo ""
 
 ## Overwrite path with present working directory.
-print_warning "Gathering present working directory for TrancodeE16."
-print_warning "If you move TrancodeE16 to another folder, you must manually edit sqldb.py and update paths to your present working directory."
+print_warning "Gathering present working directory for ElasticsearchE16."
+print_warning "If you move ElasticsearchE16 to another folder, you must manually edit sqldb.py and update paths to your present working directory."
 
 FULL_PATH="$(pwd)"
-DB_PATH="$FULL_PATH/jobs.db"
+DB_PATH="$FULL_PATH/indexes.db"
 sed -i 's|'"{PWD}"'|'"$DB_PATH"'|g' sqldb.py
 
 ## Update apt-get package list
@@ -125,7 +125,7 @@ python3 sqldb.py
 
 ## Verify SQLite database insertion and reading.
 print_step "Verifying SQLite Datbase write."
-sqlite3 jobs.db "SELECT * FROM Jobs"
+sqlite3 jobs.db "SELECT * FROM Indexes"
 echo ""
 
 ## Success!!!
