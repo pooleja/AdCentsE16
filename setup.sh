@@ -8,7 +8,7 @@
 
 ### List of packages to install
 declare -a APT_PACKAGES=("python3-pip" "sqlite3")
-declare -a PIP3_PACKAGES=("flask" "click" "PyYAML" "requests" "psutil" "pexpect")
+declare -a PIP3_PACKAGES=("flask" "click" "PyYAML" "requests" "psutil" "pexpect" "elasticsearch>=2.0.0,<3.0.0")
 
 # Helper functions: bash pretty printing, pip3 and apt-get package
 # installers / uninstallers
