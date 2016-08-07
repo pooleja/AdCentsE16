@@ -125,7 +125,7 @@ python3 sqldb.py
 
 ## Verify SQLite database insertion and reading.
 print_step "Verifying SQLite Datbase write."
-sqlite3 jobs.db "SELECT * FROM Indexes"
+sqlite3 indexes.db "SELECT * FROM Indexes"
 echo ""
 
 ## Success!!!

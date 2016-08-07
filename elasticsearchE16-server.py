@@ -20,7 +20,7 @@ from two1.bitrequests import BitTransferRequests
 requests = BitTransferRequests(Wallet(), config.Config().username)
 
 app = Flask(__name__)
-# app.debug = True
+app.debug = True
 
 # Config options
 ES_HOSTS = ["172.17.0.2:9200"]
@@ -82,7 +82,7 @@ def index_create():
             }), 500
 
 
-@app.route('/index/<index_name>')
+@app.route('/<index_name>')
 @payment.required(10)
 def index_status(index_name):
     """
@@ -123,7 +123,7 @@ def index_status(index_name):
             }), 500
 
 
-@app.route('/index/<index_name>', methods=['DELETE'])
+@app.route('/<index_name>', methods=['DELETE'])
 @payment.required(10)
 def index_delete(index_name):
     """
@@ -150,7 +150,7 @@ def index_delete(index_name):
             }), 500
 
 
-@app.route('/index/<index_name>', methods=['PUT'])
+@app.route('/<index_name>', methods=['PUT'])
 @payment.required(10)
 def index_renew(index_name):
     """
@@ -196,6 +196,102 @@ def index_renew(index_name):
             {
                 "success": False,
                 "error": "Error getting index stats: {0}".format(err)
+            }), 500
+
+
+@app.route('/<index_name>/<document_type>', methods=['POST'])
+@payment.required(10)
+def index_document(index_name, document_type):
+    """
+    Post a document to the index.
+
+    This endpoint will accept a document object and index it into the specified index wtih the specified type.
+    """
+    try:
+        # Get the existing index from the db
+        idx = sql.get_index(index_name)
+        if idx is not None:
+
+            # Check if the index was marked as deleted
+            if idx[IndexesSQL.DELETED] > 0:
+                return json.dumps({"success": False, "error": "Index was previously deleted."}), 500
+
+            # Check if the index is expired
+            if idx[IndexesSQL.EXPIRE] < time.time():
+                return json.dumps({"success": False, "error": "Index specified is expired.  Renew index to enable usage."}), 500
+
+            index_res = es.index_document(request.form, index_name, document_type)
+
+            if index_res['created'] is True:
+                return json.dumps(
+                    {
+                        "success": True,
+                        "result": index_res
+                    })
+            else:
+                return json.dumps(
+                    {
+                        "success": False,
+                        "result": index_res
+                    })
+        else:
+            return json.dumps(
+                {
+                    "success": False,
+                    "error": "Index ID: {0} was not found.".format(index_name)
+                }), 404
+
+    except Exception as err:
+        logger.error("Failure: {0}".format(err))
+        return json.dumps(
+            {
+                "success": False,
+                "error": "Error indexing document: {0}".format(err)
+            }), 500
+
+
+@app.route('/<index_name>/<document_type>/_search')
+@payment.required(10)
+def search(index_name, document_type):
+    """
+    Search an index with the data specified in the request.
+
+    This endpoint will accept a document object and index it into the specified index wtih the specified type.
+    """
+    try:
+        # Get the existing index from the db
+        idx = sql.get_index(index_name)
+        if idx is not None:
+
+            # Check if the index was marked as deleted
+            if idx[IndexesSQL.DELETED] > 0:
+                return json.dumps({"success": False, "error": "Index was previously deleted."}), 500
+
+            # Check if the index is expired
+            if idx[IndexesSQL.EXPIRE] < time.time():
+                return json.dumps({"success": False, "error": "Index specified is expired.  Renew index to enable usage."}), 500
+
+            search_res = es.search(request.values, index_name, document_type)
+
+            return json.dumps(
+                {
+                    "success": True,
+                    "result": search_res
+                })
+
+        else:
+            return json.dumps(
+                {
+                    "success": False,
+                    "error": "Index ID: {0} was not found.".format(index_name)
+                }), 404
+
+    except Exception as err:
+        logger.error("Failure: {0}".format(err))
+        return json.dumps(
+            {
+                "success": False,
+                "error": "Error indexing document: {0}".format(err)
             }), 500
 
 

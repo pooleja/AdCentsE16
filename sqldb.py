@@ -5,7 +5,7 @@ import sqlite3
 import os
 import threading
 
-DATABASE_FILE = "{PWD}"
+DATABASE_FILE = "/mnt/web/ElasticsearchE16/indexes.db"
 
 # DB lock for multithreaded use case
 db_rlock = threading.RLock()
@@ -25,8 +25,9 @@ class IndexesSQL():
         Connect to indexes.db and sets up an sql cursor.
         """
         print("Connecting to DB.")
-        self.conn = sqlite3.connect(DATABASE_FILE, check_same_thread=False)
-        self.cursor = self.conn.cursor()
+        with db_rlock:
+            self.conn = sqlite3.connect(DATABASE_FILE, check_same_thread=False)
+            self.cursor = self.conn.cursor()
 
     def create_table(self):
         """
@@ -34,7 +35,7 @@ class IndexesSQL():
         """
         with db_rlock:
             print("Creating Table.")
-            query = 'CREATE TABLE Indexes(id TEXT, expire REAL, deleted INTEGER DEFAULT 0, deletedByIP TEXT)'
+            query = 'CREATE TABLE Jobs(Id TEXT, SourceUrl TEXT, Status TEXT, Message TEXT, PercentComplete REAL, ElapsedTime REAL, Scale TEXT)'
             self.cursor.execute(query)
 
     def insert_new_index(self, index_name, expire_time):
