@@ -20,7 +20,7 @@ from two1.bitrequests import BitTransferRequests
 requests = BitTransferRequests(Wallet(), config.Config().username)
 
 app = Flask(__name__)
-app.debug = True
+# app.debug = True
 
 # Config options
 ES_HOSTS = ["172.17.0.2:9200"]
@@ -50,7 +50,7 @@ def manifest():
 
 
 @app.route('/indexes', methods=['POST'])
-@payment.required(500)
+@payment.required(10000)
 def index_create():
     """
     Create a new index in ES and set the expire date to X days in the future.
