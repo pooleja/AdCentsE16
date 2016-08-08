@@ -1,5 +1,6 @@
 import logging
 from elasticsearch import Elasticsearch
+import json
 
 logger = logging.getLogger('werkzeug')
 
@@ -24,16 +25,19 @@ class ElasticsearchE16:
         """
         Check to see whether the index exists in ES.
         """
-        self.es.indices.exists(index=index_name, expand_wildcards='none')
+        return self.es.indices.exists(index=index_name, expand_wildcards='none')
 
     def index_document(self, document, index_name, document_type):
         """
         Index the specified document into the index.
         """
+        logger.debug(json.dumps(document))
         return self.es.index(index=index_name, doc_type=document_type, body=document)
 
     def search(self, query, index_name, document_type):
         """
         Index the specified document into the index.
         """
-        return self.es.search(index=index_name, doc_type=document_type, body=query)
+        self.es.indices.refresh(index=index_name)
+        ret = self.es.search(index=index_name, doc_type=document_type, body=query)
+        return ret

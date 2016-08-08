@@ -50,14 +50,14 @@ def manifest():
 
 
 @app.route('/indexes', methods=['POST'])
-@payment.required(50000)
+@payment.required(500)
 def index_create():
     """
     Create a new index in ES and set the expire date to X days in the future.
     """
     try:
         # First create the actual index in ES
-        index_name = ''.join(random.SystemRandom().choice(string.ascii_uppercase + string.digits) for _ in range(20))
+        index_name = ''.join(random.SystemRandom().choice(string.ascii_lowercase + string.digits) for _ in range(20))
         es.create_index(index_name)
 
         # Next save it to the db with expire date
@@ -92,19 +92,22 @@ def index_status(index_name):
         # Get the record from the db
         idx_db = sql.get_index(index_name)
         idx_es_exists = es.index_exists(index_name)
+
         if idx_db is not None and idx_es_exists is True:
 
             # Check if the index was marked as deleted
+            logger.debug("Check")
             if idx_db[IndexesSQL.DELETED] > 0:
                 return json.dumps({"success": False, "error": "Index was previously deleted."}), 500
 
             # Return the info about the index
+            logger.debug("Check2")
             return json.dumps({
                 "success": True,
                 "indexId": index_name,
-                "indexExpireTime": idx_db[IndexesSQL.ID],
-                "indexExpireDisplay": time.ctime(idx_db[IndexesSQL.ID]),
-                "expired": idx_db[IndexesSQL.ID] > time.time()
+                "indexExpireTime": idx_db[IndexesSQL.EXPIRE],
+                "indexExpireDisplay": time.ctime(idx_db[IndexesSQL.EXPIRE]),
+                "expired": idx_db[IndexesSQL.EXPIRE] < time.time()
             })
 
         else:
@@ -220,7 +223,8 @@ def index_document(index_name, document_type):
             if idx[IndexesSQL.EXPIRE] < time.time():
                 return json.dumps({"success": False, "error": "Index specified is expired.  Renew index to enable usage."}), 500
 
-            index_res = es.index_document(request.form, index_name, document_type)
+            logger.debug(request.data.decode('UTF-8'))
+            index_res = es.index_document(json.loads(request.data.decode('UTF-8')), index_name, document_type)
 
             if index_res['created'] is True:
                 return json.dumps(
@@ -250,7 +254,7 @@ def index_document(index_name, document_type):
             }), 500
 
 
-@app.route('/<index_name>/<document_type>/_search')
+@app.route('/<index_name>/<document_type>/_search', methods=['POST'])
 @payment.required(10)
 def search(index_name, document_type):
     """

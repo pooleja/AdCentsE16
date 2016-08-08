@@ -11,6 +11,16 @@ DATABASE_FILE = "{PWD}"
 db_rlock = threading.RLock()
 
 
+def dict_factory(cursor, row):
+    """
+    Dictionary factory for parsing tuple results.
+    """
+    d = {}
+    for idx, col in enumerate(cursor.description):
+        d[col[0]] = row[idx]
+    return d
+
+
 class IndexesSQL():
     """
     Class to interface with the db for transcoding jobs.
@@ -27,6 +37,7 @@ class IndexesSQL():
         print("Connecting to DB.")
         with db_rlock:
             self.conn = sqlite3.connect(DATABASE_FILE, check_same_thread=False)
+            self.conn.row_factory = dict_factory
             self.cursor = self.conn.cursor()
 
     def create_table(self):
