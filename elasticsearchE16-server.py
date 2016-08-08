@@ -154,7 +154,7 @@ def index_delete(index_name):
 
 
 @app.route('/<index_name>', methods=['PUT'])
-@payment.required(10)
+@payment.required(10000)
 def index_renew(index_name):
     """
     Renews the expire date to + 30 days of today or the current date in the DB (whatever is later).
