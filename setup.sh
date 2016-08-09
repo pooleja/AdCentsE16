@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# ElasticsearchE16 install script
+# AdCentsE16 install script
 #
 # This script will help install dependencies for sensor21. It also
 # sets up the SQLite database to abstract the low level hardware
@@ -8,7 +8,7 @@
 
 ### List of packages to install
 declare -a APT_PACKAGES=("python3-pip" "sqlite3")
-declare -a PIP3_PACKAGES=("flask" "click" "PyYAML" "requests" "psutil" "pexpect" "elasticsearch>=2.0.0,<3.0.0")
+declare -a PIP3_PACKAGES=("flask" "click" "PyYAML" "requests" "psutil" "pexpect")
 
 # Helper functions: bash pretty printing, pip3 and apt-get package
 # installers / uninstallers
