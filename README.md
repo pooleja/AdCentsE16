@@ -22,8 +22,8 @@ Example:
 * James registers and verifies ownership of the eSixteen.co website.
 * James embeds the HTML code to show advertisements from the AdCentsE16 service on the eSixteen.co website.
 * On Tuesday at 11:00PM EST, John bids to buy an ad on the eSixteen.co website.
-** John pays 36 satoshis since there is 1 hour left in the day (60 seconds * 60 minutes * 0.01 satoshis).
-** James receives 18 satoshis for hosting the ad on his site.
+  * John pays 36 satoshis since there is 1 hour left in the day (60 seconds * 60 minutes * 0.01 satoshis).
+  * James receives 18 satoshis for hosting the ad on his site.
 * On Wednesday from 00:00 AM EST to 12:59 PM EST, John's ad is displayed on the eSixteen.co website.
 
 ## How to Register a Website to Host Ads
