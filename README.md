@@ -36,10 +36,10 @@ $ wallet payoutaddress
 
 Register your domain using your 21 username and receive address.
 ```
-$ 21 buy 'http://10.244.119.122:11116/registrations' -X POST -d '{"url":"http://192.168.1.68:3000", "username": "poole_party", "address": "18r3B1yUr1wduZj5UCyvsLeG8qRZ77ECbv"}'
+$ 21 buy 'http://10.244.119.122:11116/registrations' -X POST -d '{"url":"https://www.my-web-page.com", "username": "poole_party", "address": "18r3B1yUr1wduZj5UCyvsLeG8qRZ77ECbv"}'
 {
     "key": "LVFR9EOBZSRHWPBWRPAL",
-    "message": "URL has been registered.  Place a meta tag with name='AdCentsE16-site-verification' and content='LVFR9EOBZSRHWPBWRPAL' at URL: http://192.168.1.68:3000",
+    "message": "URL has been registered.  Place a meta tag with name='AdCentsE16-site-verification' and content='LVFR9EOBZSRHWPBWRPAL' at URL: https://www.my-web-page.com",
     "success": true
 }
 ```
@@ -48,7 +48,7 @@ Check registration and expect it to show false validation.
 ```
 $ 21 buy 'http://10.244.119.122:11116/registration/LVFR9EOBZSRHWPBWRPAL'
 {
-    "message": "URL http://192.168.1.68:3000 could not be validated.  No meta tag was found with proper value LVFR9EOBZSRHWPBWRPAL.",
+    "message": "URL https://www.my-web-page.com could not be validated.  No meta tag was found with proper value LVFR9EOBZSRHWPBWRPAL.",
     "success": true,
     "validated": false
 }
@@ -67,12 +67,13 @@ Check to see if the server can validate ownership.
 ```
 $ 21 buy 'http://10.244.119.122:11116/registration/LVFR9EOBZSRHWPBWRPAL'
 {
-    "message": "URL http://192.168.1.68:3000 has been validated with proper owner via meta tag.",
+    "message": "URL https://www.my-web-page.com has been validated with proper owner via meta tag.",
     "success": true,
     "validated": true,
-    "embedable_code": "<iframe width=\"600\" height=\"200\" src=\"http://localhost:3000/ad/A2561FJD24CXW5IFPH2Z\" frameborder=\"0\" allowfullscreen ></iframe>"
+    "embedable_code": "<iframe width=\"600\" height=\"200\" src=\"https://www.esixteen.co/ad/A2561FJD24CXW5IFPH2Z\" frameborder=\"0\" allowfullscreen ></iframe>"
 }
 ```
+Next, embed the iframe into your HTML so ads will be shown.
 
 ## How to Buy Ad Space on a website
 
@@ -83,7 +84,7 @@ $ 21 buy 'http://10.244.119.122:11116/registrations'
     "sites": [
         {
             "key": "LVFR9EOBZSRHWPBWRPAL",
-            "url": "https://www.esixteen.co"
+            "url": "https://www.my-web-page.com"
         }
     ],
     "success": true
@@ -92,14 +93,14 @@ $ 21 buy 'http://10.244.119.122:11116/registrations'
 
 Check the price of the URL for the site.  Set --maxprice on the cli to 1 satoshi to make sure it doesn't pay.
 ```
-$ 21 buy 'http://10.244.119.122:11116/buy/6L2DHV4YLM0WNW389HZL' -X POST --maxprice 1
+$ 21 buy 'http://10.244.119.122:11116/buy/LVFR9EOBZSRHWPBWRPAL' -X POST --maxprice 1
 Error: Resource price (23199) exceeds max price (1).
 Please use --maxprice to adjust the maximum price.
 ```
 
 Buy the ad space.
 ```
-$ 21 buy 'http://10.244.119.122:11116/buy/3MBA0MH07WVRDAFJ0CLL' -X POST --maxprice 50 -d '{"title":"eSixteen.co - Welcome to the Grid", "description": "Check out the new grid computing network.", "target_url": "https://www.esixteen.co/", "image_url":"https://www.esixteen.co/img/network.png"}'
+$ 21 buy 'http://10.244.119.122:11116/buy/LVFR9EOBZSRHWPBWRPAL' -X POST --maxprice 50 -d '{"title":"eSixteen.co - Welcome to the Grid", "description": "Check out the new grid computing network.", "target_url": "https://www.esixteen.co/", "image_url":"https://www.esixteen.co/img/network.png"}'
 {
     "message": "URL successfully bought for tomorrow.",
     "success": true
