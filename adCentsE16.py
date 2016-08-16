@@ -1,43 +1,27 @@
 import logging
-from elasticsearch import Elasticsearch
-import json
+from bs4 import BeautifulSoup
+import urllib
 
 logger = logging.getLogger('werkzeug')
 
 
-class ElasticsearchE16:
-    """Class responsible for interfacing with Elasticsearch."""
+class AdCentsE16:
+    """Class responsible for interfacing with main server."""
 
-    def __init__(self, hosts):
-        """Constructor inputs the host where ES is running."""
-        self.hosts = hosts
-        self.es = Elasticsearch(hosts=hosts)
+    def __init__(self, serverBaseUrl):
+        """Constructor inputs the host where server is running."""
+        self.serverBaseUrl = serverBaseUrl
 
-    def create_index(self, index_name):
+    def validate_url(self, url, key):
         """
-        Create an index on the server with the specified name.
+        Validates if the url specified has a meta key named "AdCentsE16-site-verification" with a content of the key.
+        """
+        response = urllib.request.urlopen(url).read()
+        soup = BeautifulSoup(response, "lxml")
+        metatag = soup.find('meta', attrs={'name': 'AdCentsE16-site-verification'})
 
-        If the index creation fails or it already exists, the call will throw an exception.
-        """
-        self.es.indices.create(index=index_name)
+        if not metatag:
+            return False
 
-    def index_exists(self, index_name):
-        """
-        Check to see whether the index exists in ES.
-        """
-        return self.es.indices.exists(index=index_name, expand_wildcards='none')
-
-    def index_document(self, document, index_name, document_type):
-        """
-        Index the specified document into the index.
-        """
-        logger.debug(json.dumps(document))
-        return self.es.index(index=index_name, doc_type=document_type, body=document)
-
-    def search(self, query, index_name, document_type):
-        """
-        Index the specified document into the index.
-        """
-        self.es.indices.refresh(index=index_name)
-        ret = self.es.search(index=index_name, doc_type=document_type, body=query)
-        return ret
+        # Determine if the meta content matches for the AdCentsE16-site-verification meta tag
+        return metatag['content'] == key

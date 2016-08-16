@@ -2,7 +2,13 @@ __pycache__
 
 elasticsearche16.pid
 
-indexes.db
-indexes.db-journal
+ads.db
+ads.db-journal
 
 .DS_Store
+
+__pycache__
+*.py[cod]
+venv/
+*.sqlite3
+.env

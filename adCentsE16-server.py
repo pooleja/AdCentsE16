@@ -6,39 +6,53 @@ import os
 import yaml
 import random
 import string
-import time
+import threading
+import datetime
 
 from flask import Flask
 from flask import request
-from sqldb import IndexesSQL
-from elasticsearchE16 import ElasticsearchE16
+from sqldb import AdsSQL
+from adCentsE16 import AdCentsE16
 
 from two1.commands.util import config
 from two1.wallet.two1_wallet import Wallet
 from two1.bitserv.flask import Payment
+from two1.bitserv import BitTransfer
 from two1.bitrequests import BitTransferRequests
-requests = BitTransferRequests(Wallet(), config.Config().username)
 
 app = Flask(__name__)
 # app.debug = True
 
 # Config options
-ES_HOSTS = ["172.17.0.2:9200"]
 CONTACT = "james@esixteen.co"
-EXPIRE_DAYS_FOR_INDEX = 30
+SERVER_BASE_URL = "http://192.168.1.68:3000"
+SERVER_SECRET_HEADER = "asdfasdf"
+PRICE_SATOSHIS_PER_SECOND = 0.01
 
 # setup wallet
 wallet = Wallet()
 payment = Payment(app, wallet)
+requests = BitTransferRequests(wallet, config.Config().username)
 
 # hide logging
 logger = logging.getLogger('werkzeug')
 
 # Create the Database connection object
-sql = IndexesSQL()
+sql = AdsSQL()
 
 # Create the ES connection object
-es = ElasticsearchE16(ES_HOSTS)
+ads = AdCentsE16(SERVER_BASE_URL)
+
+# Lock for pricing and buying
+buy_rlock = threading.RLock()
+
+
+class MockRequest:
+    """
+    This is a fake class.
+    """
+
+    text = ""
 
 
 @app.route('/manifest')
@@ -49,254 +63,269 @@ def manifest():
     return json.dumps(manifest)
 
 
-@app.route('/indexes', methods=['POST'])
-@payment.required(10000)
-def index_create():
+@app.route('/registrations', methods=['POST'])
+@payment.required(10)
+def register_url():
     """
-    Create a new index in ES and set the expire date to X days in the future.
+    Creates a new Registration and returns a secret code for the specified domain to put into meta.
     """
+    postData = json.loads(request.data.decode('UTF-8'))
+
+    # Get and validate the url
+    url = postData['url']
+    if url.startswith("http") is not True:
+        logger.warning("Failure: Invalid URL specified for register call: {}".format(url))
+        return json.dumps({"success": False, "error": "Failure: Invalid \'url'\ parameter specified."}), 500
+
+    # Get and validate the username
+    username = postData['username']
+    if not username:
+        logger.warning("Failure: Invalid username specified for register call: {}".format(username))
+        return json.dumps({"success": False, "error": "Failure: Invalid \'username'\ parameter specified."}), 500
+
+    # Get and validate the username
+    address = postData['address']
+    if not address:
+        logger.warning("Failure: Invalid address specified for register call: {}".format(address))
+        return json.dumps({"success": False, "error": "Failure: Invalid \'address'\ parameter specified."}), 500
+
     try:
-        # First create the actual index in ES
-        index_name = ''.join(random.SystemRandom().choice(string.ascii_lowercase + string.digits) for _ in range(20))
-        es.create_index(index_name)
+        # Generate a random key for this request
+        unique_key = ''.join(random.SystemRandom().choice(string.ascii_uppercase + string.digits) for _ in range(20))
 
-        # Next save it to the db with expire date
-        index_expire_time = time.time() + (60 * 60 * 24 * EXPIRE_DAYS_FOR_INDEX)
-        sql.insert_new_index(index_name, index_expire_time)
+        sql.insert_new_registration(url, username, unique_key, address)
 
-        # Return success
         return json.dumps({
             "success": True,
-            "indexId": index_name,
-            "indexExpireTime": index_expire_time,
-            "indexExpireDisplay": time.ctime(index_expire_time),
-            "expired": False
+            "key": unique_key,
+            "message": "URL has been registered.  Place a meta tag with name=\'AdCentsE16-site-verification\' "
+            "and content=\'{}\' at URL: {}".format(unique_key, url)
         })
 
     except Exception as err:
         logger.error("Failure: {0}".format(err))
-        return json.dumps(
-            {
-                "success": False,
-                "error": "Error Creating Index: {0} - Please contact {1} for details.".format(err, CONTACT)
-            }), 500
+        return json.dumps({"success": False, "error": "Error: {0}".format(err)}), 500
 
 
-@app.route('/<index_name>')
+@app.route('/registration/<key>')
 @payment.required(10)
-def index_status(index_name):
+def validate_registration(key):
     """
-    Gets the status for the specified ES index.
+    Gets the registion and validates that the appropriate metadata key was placed on the url that was registered.
     """
+    # Get and validate the key
+    if not key:
+        logger.warning("Failure: Invalid \'key\' specified for validate call: {}".format(key))
+        return json.dumps({"success": False, "error": "Failure: Invalid \'key'\ parameter specified."}), 500
+
+    # Get the registration object based on the key
+    registration = sql.get_registration(key)
+    if not registration:
+        logger.warning("Failure: Could not find \'key\' specified for validate call: {}".format(key))
+        return json.dumps({"success": False, "error": "Failure: Invalid \'key'\ parameter specified."}), 404
+
     try:
-        # Get the record from the db
-        idx_db = sql.get_index(index_name)
-        idx_es_exists = es.index_exists(index_name)
 
-        if idx_db is not None and idx_es_exists is True:
+        # Check if the meta key is found on the page
+        if ads.validate_url(registration[AdsSQL.REG_URL], registration[AdsSQL.REG_KEY]):
+            # Meta was found.  Mark the registration as validated.
+            sql.mark_registration_validated(registration[AdsSQL.REG_KEY])
 
-            # Check if the index was marked as deleted
-            logger.debug("Check")
-            if idx_db[IndexesSQL.DELETED] > 0:
-                return json.dumps({"success": False, "error": "Index was previously deleted."}), 500
+            code = '<iframe width="600" frameborder="1" src="'
+            code += SERVER_BASE_URL + "/ad/" + registration[AdsSQL.REG_KEY]
+            code += '" frameborder="0" allowfullscreen ></iframe>'
 
-            # Return the info about the index
-            logger.debug("Check2")
             return json.dumps({
                 "success": True,
-                "indexId": index_name,
-                "indexExpireTime": idx_db[IndexesSQL.EXPIRE],
-                "indexExpireDisplay": time.ctime(idx_db[IndexesSQL.EXPIRE]),
-                "expired": idx_db[IndexesSQL.EXPIRE] < time.time()
+                "validated": True,
+                "message": "URL {} has been validated with proper owner via meta tag.".format(registration[AdsSQL.REG_URL]),
+                "embedable_code": code
             })
-
         else:
-            return json.dumps(
-                {
-                    "success": False,
-                    "error": "Index ID: {0} was not found.".format(index_name)
-                }), 404
+            # Meta was not found
+            return json.dumps({
+                "success": True,
+                "validated": False,
+                "message": "URL {} could not be validated.  No meta tag was found with proper value {}.".format(registration[AdsSQL.REG_URL], key)
+            })
 
     except Exception as err:
         logger.error("Failure: {0}".format(err))
-        return json.dumps(
-            {
-                "success": False,
-                "error": "Error getting index stats: {0}".format(err)
-            }), 500
+        return json.dumps({"success": False, "error": "Error: {0}".format(err)}), 500
 
 
-@app.route('/<index_name>', methods=['DELETE'])
+@app.route('/registrations')
 @payment.required(10)
-def index_delete(index_name):
+def get_open_auctions():
     """
-    Marks the index as deleted in the DB.  We will not actually delete the index in ES to allow recovery.
-
-    TODO: There should probably be extra logic to delete old indexes.
+    Returns a list of all sites that do not already have a paid auction for today and are validated.
     """
     try:
-        # Mark index as deleted
-        sql.delete_index(index_name, request.remote_addr)
+
+        available_sites = sql.get_sites_with_no_buys_today()
 
         return json.dumps({
             "success": True,
-            "indexId": index_name,
-            "message": "Index {} deleted.".format(index_name)
+            "sites": available_sites
         })
 
     except Exception as err:
         logger.error("Failure: {0}".format(err))
-        return json.dumps(
-            {
-                "success": False,
-                "error": "Error deleting index: {0}".format(err)
-            }), 500
+        return json.dumps({"success": False, "error": "Error: {0}".format(err)}), 500
 
 
-@app.route('/<index_name>', methods=['PUT'])
-@payment.required(10000)
-def index_renew(index_name):
+def get_price_for_url(request):
     """
-    Renews the expire date to + 30 days of today or the current date in the DB (whatever is later).
+    Gets the price of the url key in the request.
+
+    If the url has already been bought today, then an error is thrown.
+    Otherwise, it will return the number of seconds left in the day
+    """
+    # Get and validate the key
+    pieces = request.path.split('/')
+    key = pieces[len(pieces) - 1]
+    if not key:
+        logger.warning("Failure: Invalid \'key\' specified for validate call: {}".format(key))
+        return json.dumps({"success": False, "error": "Failure: Invalid \'key\' parameter specified."})
+
+    # Verify the key exists
+    reg = sql.get_registration(key)
+    if not reg:
+        return json.dumps({"success": False, "error": "Failure: Invalid \'key\' parameter specified."})
+
+    with buy_rlock:
+        # First validate there is not already a buy on this url key
+        currentbuy = sql.get_todays_buy_for_site(key)
+        if currentbuy:
+            return json.dumps({"success": False, "error": "URL specified is already bought for today."})
+
+        # Calculate seconds left in the day
+        now = datetime.datetime.now()
+        tomorrow_date = datetime.date.today() + datetime.timedelta(days=1)
+        tomorrowTime = datetime.datetime.combine(tomorrow_date, datetime.datetime.min.time())
+        return int((tomorrowTime - now).seconds * PRICE_SATOSHIS_PER_SECOND)
+
+
+@app.route('/buy/<key>', methods=['POST'])
+@payment.required(get_price_for_url)
+def buy(key):
+    """
+    Tries to buy the auction for the specified registration key.
+    """
+    # Get and validate the key
+    if not key:
+        logger.warning("Failure: Invalid \'key\' specified for validate call: {}".format(key))
+        return json.dumps({"success": False, "error": "Failure: Invalid \'key'\ parameter specified."}), 400
+
+    postData = json.loads(request.data.decode('UTF-8'))
+
+    # Get and validate the title
+    title = postData['title']
+    if not title:
+        logger.warning("Failure: Invalid \'title\' specified for validate call: {}".format(title))
+        return json.dumps({"success": False, "error": "Failure: Invalid \'title'\ parameter specified."}), 400
+
+    # Get and validate the description
+    description = postData['description']
+    if not description:
+        logger.warning("Failure: Invalid \'description\' specified for validate call: {}".format(description))
+        return json.dumps({"success": False, "error": "Failure: Invalid \'description'\ parameter specified."}), 400
+
+    # Get and validate the target_url
+    target_url = postData['target_url']
+    if not target_url:
+        logger.warning("Failure: Invalid \'target_url\' specified for validate call: {}".format(target_url))
+        return json.dumps({"success": False, "error": "Failure: Invalid \'target_url'\ parameter specified."}), 400
+
+    # Get and validate the image_url
+    image_url = postData['image_url']
+    if not image_url:
+        logger.warning("Failure: Invalid \'image_url\' specified for validate call: {}".format(image_url))
+        return json.dumps({"success": False, "error": "Failure: Invalid \'image_url'\ parameter specified."}), 400
+
+    with buy_rlock:
+        incoming_payment_info = json.loads(request.headers['Bitcoin-Transfer'])
+        payment_amount = incoming_payment_info['amount']
+
+        # First validate there is not already a buy on this url key
+        currentbuy = sql.get_todays_buy_for_site(key)
+        if currentbuy:
+            # TODO: Tell the user to ask for a refund since this has already been bought.
+            return json.dumps({"success": False, "error": "URL specified is already bought for today."}), 400
+
+        # Create the buy for the specified site
+        now = datetime.datetime.now()
+        sql.insert_new_buy(key, title, description, target_url, image_url, now)
+        sql.update_latest_buy_on_registration(key, now)
+
+        # Return success info and send 50% payment price to owner of site
+        logger.debug("Looking for registration of key {}".format(key))
+        reg = sql.get_registration(key)
+        logger.debug("Reg: {}".format(reg))
+        logger.debug("Paying user {} for purchase of {}".format(reg[AdsSQL.REG_USERNAME], reg[AdsSQL.REG_URL]))
+        paid = pay_user(reg[AdsSQL.REG_USERNAME], reg[AdsSQL.REG_ADDRESS], int(payment_amount / 2))
+
+        if not paid:
+            # TODO: Throw error and save DB record
+            logger.error("Failure: to pay client 50% payment")
+        else:
+            logger.debug("Successful payment sent")
+
+        # Upload ad buy to server so it will get shown
+        upload = uploadAd(title, description, target_url, reg[AdsSQL.REG_URL], image_url, key)
+
+        if upload:
+            return json.dumps({"success": True, "message": "URL successfully bought for tomorrow."})
+        else:
+            return json.dumps({"success": False, "message": "Failed to upload ad to server."})
+
+
+def uploadAd(title, description, target_url, site_url, image_url, key):
+    """
+    Post result data to server.
     """
     try:
-        # Get the existing index from the db
-        idx = sql.get_index(index_name)
-        if idx is not None:
+        data = {
+            'title': title,
+            'description': description,
+            'targetUrl': target_url,
+            'hostedUrl': site_url,
+            'imageUrl': image_url,
+            'siteKey': key
+        }
 
-            # Check if the index was marked as deleted
-            if idx[IndexesSQL.DELETED] > 0:
-                return json.dumps({"success": False, "error": "Index was previously deleted."}), 500
+        postHeaders = {"client": SERVER_SECRET_HEADER}
+        ret = requests.post(SERVER_BASE_URL + "/ad", json=data, headers=postHeaders)
 
-            # Calculate the new expire date
-            current_time = time.time()
-            new_renew_time = current_time + (60 * 60 * 24 * EXPIRE_DAYS_FOR_INDEX)
-            if current_time < idx[IndexesSQL.EXPIRE]:
-                new_renew_time = idx[IndexesSQL.EXPIRE] + (60 * 60 * 24 * EXPIRE_DAYS_FOR_INDEX)
-
-            # Update new renew time
-            sql.update_expire(index_name, new_renew_time)
-
-            # Return success
-            return json.dumps({
-                "success": True,
-                "indexId": index_name,
-                "indexExpireTime": new_renew_time,
-                "indexExpireDisplay": time.ctime(new_renew_time),
-                "expired": False
-            })
-
+        if ret.json()['success'] is True:
+            logger.info("Successfully saved ad")
+            return True
         else:
-            return json.dumps(
-                {
-                    "success": False,
-                    "error": "Index ID: {0} was not found.".format(index_name)
-                }), 404
+            logger.error("Failed to upload ad {}".format(ret.json()['message']))
+            return False
 
     except Exception as err:
-        logger.error("Failure: {0}".format(err))
-        return json.dumps(
-            {
-                "success": False,
-                "error": "Error getting index stats: {0}".format(err)
-            }), 500
+        logger.error("Unable to upload ad with error: {}".format(err))
+        return False
 
 
-@app.route('/<index_name>/<document_type>', methods=['POST'])
-@payment.required(10)
-def index_document(index_name, document_type):
+def pay_user(to_user_name, to_address, amount):
     """
-    Post a document to the index.
-
-    This endpoint will accept a document object and index it into the specified index wtih the specified type.
+    Uses a BitTransferRequests to do an off chain payment.
     """
-    try:
-        # Get the existing index from the db
-        idx = sql.get_index(index_name)
-        if idx is not None:
+    headers = {BitTransferRequests.HTTP_BITCOIN_PRICE: amount,
+               BitTransferRequests.HTTP_BITCOIN_ADDRESS: to_address,
+               BitTransferRequests.HTTP_BITCOIN_USERNAME: to_user_name}
+    response = MockRequest()
+    setattr(response, 'headers', headers)
+    setattr(response, 'url', 'http://10.244.119.122:11116')
 
-            # Check if the index was marked as deleted
-            if idx[IndexesSQL.DELETED] > 0:
-                return json.dumps({"success": False, "error": "Index was previously deleted."}), 500
-
-            # Check if the index is expired
-            if idx[IndexesSQL.EXPIRE] < time.time():
-                return json.dumps({"success": False, "error": "Index specified is expired.  Renew index to enable usage."}), 500
-
-            logger.debug(request.data.decode('UTF-8'))
-            index_res = es.index_document(json.loads(request.data.decode('UTF-8')), index_name, document_type)
-
-            if index_res['created'] is True:
-                return json.dumps(
-                    {
-                        "success": True,
-                        "result": index_res
-                    })
-            else:
-                return json.dumps(
-                    {
-                        "success": False,
-                        "result": index_res
-                    })
-        else:
-            return json.dumps(
-                {
-                    "success": False,
-                    "error": "Index ID: {0} was not found.".format(index_name)
-                }), 404
-
-    except Exception as err:
-        logger.error("Failure: {0}".format(err))
-        return json.dumps(
-            {
-                "success": False,
-                "error": "Error indexing document: {0}".format(err)
-            }), 500
-
-
-@app.route('/<index_name>/<document_type>/_search', methods=['POST'])
-@payment.required(10)
-def search(index_name, document_type):
-    """
-    Search an index with the data specified in the request.
-
-    This endpoint will accept a document object and index it into the specified index wtih the specified type.
-    """
-    try:
-        # Get the existing index from the db
-        idx = sql.get_index(index_name)
-        if idx is not None:
-
-            # Check if the index was marked as deleted
-            if idx[IndexesSQL.DELETED] > 0:
-                return json.dumps({"success": False, "error": "Index was previously deleted."}), 500
-
-            # Check if the index is expired
-            if idx[IndexesSQL.EXPIRE] < time.time():
-                return json.dumps({"success": False, "error": "Index specified is expired.  Renew index to enable usage."}), 500
-
-            search_res = es.search(request.values, index_name, document_type)
-
-            return json.dumps(
-                {
-                    "success": True,
-                    "result": search_res
-                })
-
-        else:
-            return json.dumps(
-                {
-                    "success": False,
-                    "error": "Index ID: {0} was not found.".format(index_name)
-                }), 404
-
-    except Exception as err:
-        logger.error("Failure: {0}".format(err))
-        return json.dumps(
-            {
-                "success": False,
-                "error": "Error indexing document: {0}".format(err)
-            }), 500
+    logger.debug("Making 402 payment request with headers: {}".format(response))
+    req = requests.make_402_payment(response, amount)
+    logger.debug("Have the payment: {}".format(req))
+    transfer = BitTransfer(wallet)
+    logger.debug("Have the transfer: {}".format(transfer))
+    return transfer.redeem_payment(amount, req)
 
 
 if __name__ == '__main__':
@@ -316,7 +345,7 @@ if __name__ == '__main__':
         logging.basicConfig(level=numeric_level)
 
         if daemon:
-            pid_file = './elasticsearche16.pid'
+            pid_file = './adCentsE16.pid'
             if os.path.isfile(pid_file):
                 pid = int(open(pid_file).read())
                 os.remove(pid_file)
@@ -326,13 +355,13 @@ if __name__ == '__main__':
                 except:
                     pass
             try:
-                p = subprocess.Popen(['python3', 'elasticsearchE16-server.py'])
+                p = subprocess.Popen(['python3', 'adCentsE16-server.py'])
                 open(pid_file, 'w').write(str(p.pid))
             except subprocess.CalledProcessError:
-                raise ValueError("error starting elasticsearchE16-server.py daemon")
+                raise ValueError("error starting adCentsE16-server.py daemon")
         else:
 
             logger.info("Server running...")
-            app.run(host='0.0.0.0', port=11016)
+            app.run(host='0.0.0.0', port=11116)
 
     run()
