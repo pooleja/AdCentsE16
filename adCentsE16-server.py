@@ -25,7 +25,7 @@ app = Flask(__name__)
 
 # Config options
 CONTACT = "james@esixteen.co"
-SERVER_BASE_URL = "http://192.168.1.68:3000"
+SERVER_BASE_URL = "https://www.esixteen.co"
 SERVER_SECRET_HEADER = "asdfasdf"
 PRICE_SATOSHIS_PER_SECOND = 0.01
 
@@ -174,7 +174,7 @@ def get_open_auctions():
         return json.dumps({"success": False, "error": "Error: {0}".format(err)}), 500
 
 
-def get_price_for_url(request):
+def get_price_for_url(request, key):
     """
     Gets the price of the url key in the request.
 
@@ -243,6 +243,9 @@ def buy(key):
         logger.warning("Failure: Invalid \'image_url\' specified for validate call: {}".format(image_url))
         return json.dumps({"success": False, "error": "Failure: Invalid \'image_url'\ parameter specified."}), 400
 
+    # Generate a random key for this request
+    campaignKey = ''.join(random.SystemRandom().choice(string.ascii_uppercase + string.digits) for _ in range(20))
+
     with buy_rlock:
         incoming_payment_info = json.loads(request.headers['Bitcoin-Transfer'])
         payment_amount = incoming_payment_info['amount']
@@ -255,7 +258,7 @@ def buy(key):
 
         # Create the buy for the specified site
         now = datetime.datetime.now()
-        sql.insert_new_buy(key, title, description, target_url, image_url, now)
+        sql.insert_new_buy(key, campaignKey, title, description, target_url, image_url, now)
         sql.update_latest_buy_on_registration(key, now)
 
         # Return success info and send 50% payment price to owner of site
@@ -272,15 +275,16 @@ def buy(key):
             logger.debug("Successful payment sent")
 
         # Upload ad buy to server so it will get shown
-        upload = uploadAd(title, description, target_url, reg[AdsSQL.REG_URL], image_url, key)
+        upload = uploadAd(title, description, target_url, reg[AdsSQL.REG_URL], image_url, key, campaignKey)
 
         if upload:
-            return json.dumps({"success": True, "message": "URL successfully bought for tomorrow."})
+            return json.dumps({"success": True, "message": "URL successfully bought for tomorrow with Campaign Key {}.".format(campaignKey),
+                               "campaignKey": campaignKey})
         else:
             return json.dumps({"success": False, "message": "Failed to upload ad to server."})
 
 
-def uploadAd(title, description, target_url, site_url, image_url, key):
+def uploadAd(title, description, target_url, site_url, image_url, key, campaignKey):
     """
     Post result data to server.
     """
@@ -291,7 +295,8 @@ def uploadAd(title, description, target_url, site_url, image_url, key):
             'targetUrl': target_url,
             'hostedUrl': site_url,
             'imageUrl': image_url,
-            'siteKey': key
+            'siteKey': key,
+            'campaignKey': campaignKey,
         }
 
         postHeaders = {"client": SERVER_SECRET_HEADER}
@@ -323,9 +328,21 @@ def pay_user(to_user_name, to_address, amount):
     logger.debug("Making 402 payment request with headers: {}".format(response))
     req = requests.make_402_payment(response, amount)
     logger.debug("Have the payment: {}".format(req))
-    transfer = BitTransfer(wallet)
+    transfer = BitTransfer(wallet, username=to_user_name)
     logger.debug("Have the transfer: {}".format(transfer))
     return transfer.redeem_payment(amount, req)
+
+
+@app.route('/campaign/<campaignKey>')
+@payment.required(10)
+def get_campaign_stats(campaignKey):
+    """
+    Gets the stats for this campaign from the server.
+    """
+    postHeaders = {"client": SERVER_SECRET_HEADER}
+    ret = requests.get(SERVER_BASE_URL + "/ad/stats/" + campaignKey, headers=postHeaders)
+
+    return ret.text
 
 
 if __name__ == '__main__':
@@ -362,6 +379,6 @@ if __name__ == '__main__':
         else:
 
             logger.info("Server running...")
-            app.run(host='0.0.0.0', port=11116)
+            app.run(host='::', port=11116)
 
     run()

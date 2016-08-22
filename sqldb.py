@@ -57,8 +57,8 @@ class AdsSQL():
                     'validated INTEGER DEFAULT 0, latestBuyDate timestamp DEFAULT 0, address TEXT)'
             self.cursor.execute(query)
 
-            query = 'CREATE TABLE Buys(buyId INTEGER PRIMARY KEY AUTOINCREMENT, regKey TEXT, buyDate timestamp, title TEXT, description TEXT, ' \
-                    'targetUrl TEXT, imageUrl TEXT, FOREIGN KEY(regKey) REFERENCES Registrations(key))'
+            query = 'CREATE TABLE Buys(buyId INTEGER PRIMARY KEY AUTOINCREMENT, regKey TEXT, campaignKey TEXT, buyDate timestamp, title TEXT, ' \
+                    'description TEXT, targetUrl TEXT, imageUrl TEXT, FOREIGN KEY(regKey) REFERENCES Registrations(key))'
             self.cursor.execute(query)
 
     def insert_new_registration(self, url, username, key, address):
@@ -108,7 +108,7 @@ class AdsSQL():
             res = self.cursor.execute(query, (key, datetime.date.today()))
             return res.fetchall()
 
-    def insert_new_buy(self, regKey, title, description, target_url, image_url, buy_time):
+    def insert_new_buy(self, regKey, campaignKey, title, description, target_url, image_url, buy_time):
         """
         Create a new buy record for the specified registration.
         """
@@ -120,8 +120,8 @@ class AdsSQL():
             u = target_url[:2024]
             i = image_url[:2024]
 
-            query = 'INSERT INTO Buys(regKey, buyDate, title, description, targetUrl, imageUrl) VALUES(?,?,?,?,?,?)'
-            self.cursor.execute(query, (regKey, buy_time, t, d, u, i))
+            query = 'INSERT INTO Buys(regKey, campaignKey, buyDate, title, description, targetUrl, imageUrl) VALUES(?,?,?,?,?,?,?)'
+            self.cursor.execute(query, (regKey, campaignKey, buy_time, t, d, u, i))
             self.conn.commit()
 
     def update_latest_buy_on_registration(self, regKey, buy_time):

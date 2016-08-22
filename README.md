@@ -36,7 +36,8 @@ $ wallet payoutaddress
 
 Register your domain using your 21 username and receive address.
 ```
-$ 21 buy 'http://10.244.119.122:11116/registrations' -X POST -d '{"url":"https://www.my-web-page.com", "username": "poole_party", "address": "18r3B1yUr1wduZj5UCyvsLeG8qRZ77ECbv"}'
+
+$ 21 buy 'http://[fcce:0798:30f6:442a:aaf8:0000:0000:0001]:11116/registrations' -X POST -d '{"url":"https://www.esixteen.co", "username": "poole_party", "address": "18r3B1yUr1wduZj5UCyvsLeG8qRZ77ECbv"}'
 {
     "key": "LVFR9EOBZSRHWPBWRPAL",
     "message": "URL has been registered.  Place a meta tag with name='AdCentsE16-site-verification' and content='LVFR9EOBZSRHWPBWRPAL' at URL: https://www.my-web-page.com",
@@ -46,7 +47,7 @@ $ 21 buy 'http://10.244.119.122:11116/registrations' -X POST -d '{"url":"https:/
 
 Check registration and expect it to show false validation.
 ```
-$ 21 buy 'http://10.244.119.122:11116/registration/LVFR9EOBZSRHWPBWRPAL'
+$ 21 buy 'http://[fcce:0798:30f6:442a:aaf8:0000:0000:0001]:11116/registration/LVFR9EOBZSRHWPBWRPAL'
 {
     "message": "URL https://www.my-web-page.com could not be validated.  No meta tag was found with proper value LVFR9EOBZSRHWPBWRPAL.",
     "success": true,
@@ -65,7 +66,7 @@ Add the meta tag to the head section in your web site.
 
 Check to see if the server can validate ownership.
 ```
-$ 21 buy 'http://10.244.119.122:11116/registration/LVFR9EOBZSRHWPBWRPAL'
+$ 21 buy 'http://[fcce:0798:30f6:442a:aaf8:0000:0000:0001]:11116/registration/LVFR9EOBZSRHWPBWRPAL'
 {
     "message": "URL https://www.my-web-page.com has been validated with proper owner via meta tag.",
     "success": true,
@@ -79,7 +80,7 @@ Next, embed the iframe into your HTML so ads will be shown.
 
 See what URLS are available to bid on for tomorrow.
 ```
-$ 21 buy 'http://10.244.119.122:11116/registrations'
+$ 21 buy 'http://[fcce:0798:30f6:442a:aaf8:0000:0000:0001]:11116/registrations'
 {
     "sites": [
         {
@@ -93,17 +94,18 @@ $ 21 buy 'http://10.244.119.122:11116/registrations'
 
 Check the price of the URL for the site.  Set --maxprice on the cli to 1 satoshi to make sure it doesn't pay.
 ```
-$ 21 buy 'http://10.244.119.122:11116/buy/LVFR9EOBZSRHWPBWRPAL' -X POST --maxprice 1
+$ 21 buy 'http://[fcce:0798:30f6:442a:aaf8:0000:0000:0001]:11116/buy/LVFR9EOBZSRHWPBWRPAL' -X POST --maxprice 1
 Error: Resource price (23199) exceeds max price (1).
 Please use --maxprice to adjust the maximum price.
 ```
 
-Buy the ad space.
+Buy the ad space.  Note that you are given a campaignKey in response.
 ```
-$ 21 buy 'http://10.244.119.122:11116/buy/LVFR9EOBZSRHWPBWRPAL' -X POST --maxprice 50 -d '{"title":"eSixteen.co - Welcome to the Grid", "description": "Check out the new grid computing network.", "target_url": "https://www.esixteen.co/", "image_url":"https://www.esixteen.co/img/network.png"}'
+$ 21 buy 'http://[fcce:0798:30f6:442a:aaf8:0000:0000:0001]:11116/buy/LVFR9EOBZSRHWPBWRPAL' -X POST --maxprice 50 -d '{"title":"eSixteen.co - Welcome to the Grid", "description": "Check out the new grid computing network.", "target_url": "https://www.esixteen.co/", "image_url":"https://www.esixteen.co/img/network.png"}'
 {
     "message": "URL successfully bought for tomorrow.",
-    "success": true
+    "success": true,
+    "campaignKey": "9QBEYCOSDE6HEX70RLRS",
 }
 ```
 The following parameters are required:
@@ -111,3 +113,13 @@ The following parameters are required:
 * description: This is the main body of text that will be displayed for the ad.
 * image_url: This is an https link to the picture that will be displayed next to the ad.
 * target_url: This is the https link where the user will be redirected when they click on the ad.
+
+Use the campaignKey to get stats on your campaign after ads have been displayed.
+```
+21 buy 'http://[fcce:0798:30f6:442a:aaf8:0000:0000:0001]:11116/campaign/9QBEYCOSDE6HEX70RLRS'
+{
+    "clickthroughCount": 2,
+    "impressionCount": 5,
+    "success": true
+}
+```
