@@ -1,39 +1,24 @@
-# Swagger definition for the TranscodeE16 Manifest
-swagger: '2.0'
-
-# Metadata
+basePath: /
+host: '[fcce:a977:eef6:442a:aaf8:0000:0000:0001]:11116'
 info:
-  version: "0.0.1"
-  title: AdCentsE16
-  description: 'Buy and Sell online advertising space with Bitcoin.'
+  contact: {email: james@esixteen.co, name: eSixteen.co, url: 'https://www.esixteen.co/'}
+  description: Buy and Sell online advertising space with Bitcoin.
   termsOfService: https://opensource.org/licenses/MIT
-  contact:
-    email: james@esixteen.co
-    name: eSixteen.co
-    url: https://www.esixteen.co/
-  x-21-usage: 'Use the available API endpoints to index and search for your documents.'
-  x-21-quick-buy: "21 buy http://[fcce:a977:eef6:442a:aaf8:0000:0000:0001]:11116/registrations"
+  title: AdCentsE16
+  version: 0.0.1
+  x-21-app-image: https://cdn.filepicker.io/api/file/xpq5tK5nSTm5ZuH2B3BW
   x-21-category: utilities
   x-21-github-profile-url: https://github.com/pooleja
-  x-21-github-project-url: https://github.com/pooleja/AdCentsE16
+  x-21-github-project-url: https://www.esixteen.co/apps/adcentse16
   x-21-keywords: [ads, revenue, money, price, advertisement, ad]
-  x-21-app-image: https://cdn.filepicker.io/api/file/xpq5tK5nSTm5ZuH2B3BW
-  x-21-total-price:
-     min: 10
-     max: 10000
-host: '[fcce:a977:eef6:442a:aaf8:0000:0000:0001]:11116'
-schemes:
-   - http
-basePath: /
-
-# Available paths for the app
+  x-21-quick-buy: 21 buy http://[fcce:a977:eef6:442a:aaf8:0000:0000:0001]:11116/registrations
+  x-21-total-price: {max: 10000, min: 10}
+  x-21-usage: Use the available API endpoints to index and search for your documents.
 paths:
   /registrations:
     get:
       description: Gets a list of web pages that have ads available for bidding.
-
-      # Expected responses for this operation:
       responses:
-        # Response code
-        200:
-          description: Successfully returns the site URLs.
+        200: {description: Successfully returns the site URLs.}
+schemes: [http]
+swagger: '2.0'
