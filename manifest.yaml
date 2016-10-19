@@ -5,7 +5,7 @@ swagger: '2.0'
 info:
   version: "0.0.1"
   title: AdCentsE16
-  description: ''
+  description: 'Buy and Sell online advertising space with Bitcoin.'
   termsOfService: https://opensource.org/licenses/MIT
   contact:
     email: james@esixteen.co
