@@ -12,7 +12,7 @@ info:
     name: eSixteen.co
     url: https://www.esixteen.co/
   x-21-usage: 'Use the available API endpoints to index and search for your documents.'
-  x-21-quick-buy: "21 buy url http://[fcce:a977:eef6:442a:aaf8:0000:0000:0001]:11016/status"
+  x-21-quick-buy: "21 buy http://[fcce:a977:eef6:442a:aaf8:0000:0000:0001]:11116/registrations"
   x-21-category: utilities
   x-21-github-profile-url: https://github.com/pooleja
   x-21-github-project-url: https://github.com/pooleja/AdCentsE16
@@ -20,7 +20,7 @@ info:
   x-21-total-price:
      min: 10
      max: 10000
-host: [fcce:a977:eef6:442a:aaf8:0000:0000:0001]:11016
+host: [fcce:a977:eef6:442a:aaf8:0000:0000:0001]:11116
 schemes:
    - http
 basePath: /
