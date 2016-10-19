@@ -17,6 +17,7 @@ info:
   x-21-github-profile-url: https://github.com/pooleja
   x-21-github-project-url: https://github.com/pooleja/AdCentsE16
   x-21-keywords: [ads, revenue, money, price, advertisement, ad]
+  x-21-app-image: https://cdn.filepicker.io/api/file/Aqb664OHTBGKyv3S68rL
   x-21-total-price:
      min: 10
      max: 10000
