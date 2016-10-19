@@ -55,14 +55,6 @@ class MockRequest:
     text = ""
 
 
-@app.route('/manifest')
-def manifest():
-    """Provide the app manifest to the 21 crawler."""
-    with open('./manifest.yaml', 'r') as f:
-        manifest = yaml.load(f)
-    return json.dumps(manifest)
-
-
 @app.route('/registrations', methods=['POST'])
 @payment.required(10)
 def register_url():
